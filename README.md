@@ -11,8 +11,7 @@ Automates Lattice HR objectives (create, update, delete, list) via browser sessi
 ## Installation
 
 ```bash
-cd lattice/
-pip install -e ".[ui]"
+pip install lattice-mcp
 playwright install chromium
 ```
 
