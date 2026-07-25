@@ -29,6 +29,19 @@ mcp = FastMCP(
 
 # --- Helpers ---
 
+CHROMIUM_MISSING = (
+    "Chromium browser not found. Run: playwright install chromium"
+)
+
+
+async def _launch_browser(p):
+    try:
+        return await _launch_browser(p)
+    except Exception as e:
+        if "executable doesn't exist" in str(e).lower() or "browsertype.launch" in str(e).lower():
+            raise RuntimeError(CHROMIUM_MISSING) from e
+        raise
+
 
 async def _scrape_page_graphql(path: str) -> tuple[str, list[dict]]:
     """Scrape a Lattice page and return (page_text, graphql_responses)."""
@@ -48,7 +61,7 @@ async def _scrape_page_graphql(path: str) -> tuple[str, list[dict]]:
     graphql_responses: list[dict] = []
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+        browser = await _launch_browser(p)
         context = await browser.new_context(storage_state=state_file)
 
         async def on_response(response):
@@ -161,7 +174,7 @@ async def lattice_update_objective(
     requests_log: list[dict] = []
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+        browser = await _launch_browser(p)
         context = await browser.new_context(storage_state=state_file)
 
         def on_request(request):
@@ -245,7 +258,7 @@ async def lattice_create_objective(
     create_url = f"https://{host}/goals/create/objective"
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+        browser = await _launch_browser(p)
         context = await browser.new_context(storage_state=state_file)
         page = await context.new_page()
         await page.goto(create_url, wait_until="networkidle")
@@ -301,7 +314,7 @@ async def lattice_delete_objective(goal_entity_id: str) -> str:
     goal_url = f"https://{host}/goals/{goal_entity_id}"
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+        browser = await _launch_browser(p)
         context = await browser.new_context(storage_state=state_file)
         page = await context.new_page()
         await page.goto(goal_url, wait_until="networkidle")
