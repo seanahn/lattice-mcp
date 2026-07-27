@@ -88,7 +88,35 @@ Overrides (env beats config file):
 | Topic | `LATTICE_NTFY_TOPIC` | `ntfy_topic` | generated on first use |
 | Server | `LATTICE_NTFY_SERVER` | `ntfy_server` | `https://ntfy.sh` |
 
-Install the `qr` extra (`pip install lattice-mcp[qr]`) for a scannable terminal QR code during setup.
+Install the `qr` extra (`pip install lattice-mcp[qr]`) for a scannable terminal QR code during setup:
+
+```
+$ lattice notify --show
+
+  Topic:  lattice-example-abc123xyz789
+  URL:    https://ntfy.sh/lattice-example-abc123xyz789
+
+  █▀▀▀▀▀▀▀████▀▀▀██▀▀▀▀▀█▀▀██▀▀▀▀▀▀▀█
+  █ █▀▀▀█ █▀▄▀▄█ ▄ █ ▀█▄█▄▀▄█ █▀▀▀█ █
+  █ █   █ █ █ ▄ ▀▄ ▄█▀▄▄ ▄▄ █ █   █ █
+  █ ▀▀▀▀▀ █ ▄▀▄ █ ▄ ▄ █ █▀█▀█ ▀▀▀▀▀ █
+  █▀█▀▀▀▀▀█▄█ █▄▀▀ ▀▀███▄ ▀ █▀▀▀▀▀███
+  █ ▄█ ▄ ▀▄  ▀█ ██▀ █ ▄▄ █▄▄█ ▄▀▄ ▀▄█
+  █▄▄█▄█▀▀   ▀▄ █▄▄▄█▀█▄ ▄▀▄▀██  ▄▄██
+  █ ▄▀ ▄ ▀ █ ▀ ▀▀ ▄▄██▀▄▀▄▄   █▀█▄ ▄█
+  █▀██▀ ▀▀▀▄▄  █▄ █▄▀▀  ▄█▀▄ ▄ ▀▄▄█▀█
+  █▄█▀▄ ▄▀ ▀  █▄▄▀▀  ▄▄▄█▀▄▀█  ▀▄ ▀▄█
+  █▀█▄ ▄▀▀ ▄▄▀█ █  ▀▄▄█ ▀▀▄█ █▄  ▄ ▀█
+  █ █▄ ▀ ▀ ▀▄▀  ▄█ ▀▄▄█▀█▀▄▄   ▀▀▄▀▄█
+  █ █▀ ▀ ▀▀▄▄▄  ▀█ █▀██▀▄ ▄▀▀  ▀▀▄▀▀█
+  █▀▀▀▀▀▀▀█▄▀▄█  ▄▀▄█ ▄  █▀ █▀█ █ █▄█
+  █ █▀▀▀█ █ ▀███▄ ▄██▀██ ▄▄ ▀▀▀  ▄ ██
+  █ █   █ █  ▄▄█▀█▄▄██▀▄▀ ▀  ▀▀▄▀ █▄█
+  █ ▀▀▀▀▀ █▀ ██  ▀█ ▀█ ▄▄▀▄▀█ ▀▄▀▄▀██
+  ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+
+  Scan with your phone to subscribe in the ntfy app.
+```
 
 ## MCP Server Setup (Claude Code)
 
