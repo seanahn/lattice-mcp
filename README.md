@@ -23,8 +23,10 @@ The server uses a saved Playwright browser session (`~/.config/lattice/browser-s
 ### Option A: Local machine with a display
 
 ```bash
-lattice ui login --hostname <your-company>.latticehq.com
+lattice ui login [--hostname <your-company>.latticehq.com]
 ```
+
+If `--hostname` is omitted, it falls back to the `LATTICE_WEB_HOSTNAME` environment variable (see [Configuration](#configuration)).
 
 A Chromium window opens — complete your SSO login. The window closes automatically once authenticated and the session is saved. The session is reusable until it expires on Lattice's side (typically days to weeks).
 
