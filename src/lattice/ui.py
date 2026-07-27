@@ -275,6 +275,14 @@ def ui_scrape(
         if screenshot:
             page.screenshot(path=screenshot)
 
+        # Write refreshed cookies back so each scrape extends the stored session
+        try:
+            storage = context.storage_state()
+            state_file.write_text(json.dumps(storage, indent=2))
+            os.chmod(str(state_file), 0o600)
+        except Exception:
+            pass
+
         browser.close()
 
     out_path = Path(out_dir)

@@ -44,6 +44,22 @@ async def _launch_browser(p):
         raise
 
 
+async def _save_session(context) -> None:
+    """Write refreshed cookies back to disk so activity extends the stored session.
+
+    Servers rotate/extend session cookies via Set-Cookie during a visit;
+    without this write-back the stored state keeps the original cookies and
+    ages toward expiry no matter how often the tools are used.
+    """
+    try:
+        state_path = browser_state_path()
+        storage = await context.storage_state()
+        state_path.write_text(json.dumps(storage, indent=2))
+        os.chmod(str(state_path), 0o600)
+    except Exception:
+        pass  # never fail the calling tool over a keepalive write
+
+
 async def _scrape_page_graphql(path: str) -> tuple[str, list[dict]]:
     """Scrape a Lattice page and return (page_text, graphql_responses)."""
     from playwright.async_api import async_playwright
@@ -88,6 +104,7 @@ async def _scrape_page_graphql(path: str) -> tuple[str, list[dict]]:
             raise RuntimeError("Session expired. Call the lattice_ui_login tool (or run 'lattice ui login') to re-authenticate.")
 
         text = await page.inner_text("body")
+        await _save_session(context)
         await browser.close()
 
     return text, graphql_responses
@@ -294,6 +311,7 @@ async def lattice_update_objective(
             return "Error: Could not find submit button."
 
         await asyncio.sleep(4)
+        await _save_session(context)
         await browser.close()
 
     if requests_log:
@@ -358,6 +376,7 @@ async def lattice_create_objective(
             return "Error: Could not find or click Publish objective button."
 
         await asyncio.sleep(5)
+        await _save_session(context)
         await browser.close()
 
     return f"Objective created: \"{title}\""
@@ -420,6 +439,7 @@ async def lattice_delete_objective(goal_entity_id: str) -> str:
 
         # Check if navigated away (success indicator)
         url_after = page.url
+        await _save_session(context)
         await browser.close()
 
     if goal_entity_id not in url_after:
