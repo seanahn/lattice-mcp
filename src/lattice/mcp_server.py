@@ -216,6 +216,31 @@ def _notify_subscription_info() -> str:
 
 
 @mcp.tool()
+async def lattice_notify(message: str, title: str = "") -> str:
+    """Send a push notification to the user's phone via ntfy.
+
+    Uses the per-user topic from LATTICE_NTFY_TOPIC or the config file
+    (generated on first use). Use for alerts and completion notices,
+    especially in scheduled/headless runs where the user isn't watching.
+    """
+    from lattice import notify
+
+    existing = notify.resolve_topic()
+    rc = await asyncio.to_thread(notify.send, message, title or None)
+    if rc != 0:
+        return "Error: failed to send notification (see server log for details)."
+    if existing is None:
+        topic = notify.resolve_topic()
+        return (
+            f"Notification sent, but the topic '{topic}' was just generated — "
+            "nobody may be subscribed to it yet. Show the user the subscription "
+            "info: topic name, URL (run 'lattice notify --show'), so they can "
+            "subscribe in the ntfy app."
+        )
+    return "Notification sent."
+
+
+@mcp.tool()
 async def lattice_objectives(owner_id: str = USER_ENTITY_ID) -> str:
     """List Lattice objectives for a user (defaults to $LATTICE_USER_ENTITY_ID).
 

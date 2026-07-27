@@ -116,6 +116,7 @@ Restart Claude Code to load the server. The tools appear as `lattice_*` in your 
 |------|-------------|
 | `lattice_session_status` | Check if the browser session is active |
 | `lattice_ui_login` | Open a browser window for SSO login (requires a display; the user completes the login) |
+| `lattice_notify` | Send a push notification to the user via ntfy |
 | `lattice_objectives` | List active objectives for a user (defaults to you) |
 | `lattice_create_objective` | Create a new objective (title, optional priority/due date) |
 | `lattice_update_objective` | Post a status update + comment to an objective |
