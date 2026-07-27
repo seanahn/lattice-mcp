@@ -66,6 +66,28 @@ All configuration is via environment variables — no code changes needed to poi
 
 To find your user entity ID: open any Lattice page filtered to your objectives and copy the UUID from the URL (`ownerEntityIdsFilter=...`), or inspect a GraphQL response in your browser's devtools.
 
+## Notifications (ntfy)
+
+Cron jobs and agents can push alerts to your phone via [ntfy](https://ntfy.sh):
+
+```bash
+lattice notify --setup          # generate your personal topic + show subscribe info (QR)
+lattice notify --test           # send a test push
+lattice notify "message" --title "optional title"
+lattice notify --show           # re-print topic / URL / QR anytime
+```
+
+The first use generates a per-user topic like `lattice-<user>-<random12>` and stores it in `~/.config/lattice/config.json`. **The random suffix is the secret** — on public ntfy servers the topic name is the only access control, so don't shorten it or share it.
+
+Overrides (env beats config file):
+
+| | env | config.json key | default |
+|---|---|---|---|
+| Topic | `LATTICE_NTFY_TOPIC` | `ntfy_topic` | generated on first use |
+| Server | `LATTICE_NTFY_SERVER` | `ntfy_server` | `https://ntfy.sh` |
+
+Install the `qr` extra (`pip install lattice-mcp[qr]`) for a scannable terminal QR code during setup.
+
 ## MCP Server Setup (Claude Code)
 
 Add to your project's `.mcp.json`:

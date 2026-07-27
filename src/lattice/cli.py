@@ -45,6 +45,22 @@ def main(argv: list[str] | None = None) -> int:
     ui_sub.add_parser("status", help="Check browser session")
     ui_sub.add_parser("logout", help="Remove browser session")
 
+    # --- notify ---
+    notify_p = sub.add_parser("notify", help="Send a push notification via ntfy")
+    notify_p.add_argument("message", nargs="?", default=None)
+    notify_p.add_argument("--title", default=None, help="Notification title")
+    notify_p.add_argument(
+        "--setup",
+        action="store_true",
+        help="Generate a topic if none exists and show subscription info",
+    )
+    notify_p.add_argument(
+        "--show", action="store_true", help="Show the current topic and subscription info"
+    )
+    notify_p.add_argument(
+        "--test", action="store_true", help="Send a test notification"
+    )
+
     scrape_p = ui_sub.add_parser("scrape", help="Scrape a Lattice page")
     scrape_p.add_argument("path", nargs="?", default="/home")
     scrape_p.add_argument("--hostname", default=None)
@@ -112,6 +128,31 @@ def main(argv: list[str] | None = None) -> int:
         else:
             ui_parser.print_help()
             return 1
+
+    elif args.command == "notify":
+        from lattice import notify
+
+        if args.setup:
+            rc = notify.show(args.config_dir, create=True)
+            if rc == 0 and args.test:
+                rc = notify.send(
+                    "Test notification from lattice-mcp",
+                    config_dir_override=args.config_dir,
+                )
+            return rc
+        if args.show:
+            return notify.show(args.config_dir)
+        if args.test:
+            return notify.send(
+                "Test notification from lattice-mcp",
+                config_dir_override=args.config_dir,
+            )
+        if args.message is None:
+            notify_p.print_help()
+            return 1
+        return notify.send(
+            args.message, title=args.title, config_dir_override=args.config_dir
+        )
 
     else:
         parser.print_help()
