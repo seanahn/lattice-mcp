@@ -198,6 +198,14 @@ def ui_login(
         if not cdp_url:
             browser.close()
 
+    # After a manual login, surface notification setup — the natural
+    # onboarding moment. Headless (cron/silent-refresh) runs skip it.
+    if not headless:
+        from lattice import notify
+
+        print("\nPhone alerts for session expiry & automation:")
+        notify.show(config_dir_override, create=True)
+
     return 0
 
 
@@ -242,7 +250,7 @@ def write_scrape_outputs(
 
 
 def ui_scrape(
-    path: str = "/home",
+    path: str = "/",
     hostname: Optional[str] = None,
     out_dir: str = "./lattice-scrape",
     capture_html: bool = False,

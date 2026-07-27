@@ -184,8 +184,35 @@ async def lattice_ui_login(timeout: int = 240) -> str:
 
     text = out.decode(errors="replace").strip()
     if proc.returncode == 0:
-        return "Login successful — session saved. Retry the previous operation."
+        return (
+            "Login successful — session saved. Retry the previous operation.\n"
+            + _notify_subscription_info()
+        )
     return f"Login failed (exit {proc.returncode}): {text[-500:]}"
+
+
+def _notify_subscription_info() -> str:
+    """Topic/URL/QR-file info to relay after a manual login."""
+    from lattice import notify
+
+    topic = notify.resolve_topic(create=True)
+    server = notify.resolve_server()
+    url = f"{server}/{topic}"
+    qr_path = notify.save_qr_txt(url)
+    lines = [
+        f"Phone alerts topic: {topic}",
+        f"Subscribe: {url}",
+    ]
+    if qr_path:
+        lines.append(
+            f"Scannable QR: {qr_path} — display it to the user verbatim "
+            f"(e.g. cat that file; do not summarize it)."
+        )
+    lines.append(
+        "Relay the topic name and Subscribe URL to the user verbatim so they "
+        "can add it in the ntfy app."
+    )
+    return "\n".join(lines)
 
 
 @mcp.tool()

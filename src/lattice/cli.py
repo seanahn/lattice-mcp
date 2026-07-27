@@ -62,7 +62,7 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     scrape_p = ui_sub.add_parser("scrape", help="Scrape a Lattice page")
-    scrape_p.add_argument("path", nargs="?", default="/home")
+    scrape_p.add_argument("path", nargs="?", default="/")
     scrape_p.add_argument("--hostname", default=None)
     scrape_p.add_argument("--out", default="./lattice-scrape")
     scrape_p.add_argument("--html", action="store_true")

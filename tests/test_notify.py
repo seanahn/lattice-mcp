@@ -100,6 +100,29 @@ class TestSend:
         assert captured["data"] == b"hello"
         assert captured["title"] == "Hi"
 
+    def test_first_send_warns_about_generated_topic(
+        self, tmp_config, monkeypatch, capsys
+    ):
+        class FakeResp:
+            status = 200
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        monkeypatch.setattr(
+            notify.urllib.request, "urlopen", lambda req, timeout=None: FakeResp()
+        )
+        monkeypatch.setenv("USER", "carol")
+        assert notify.send("first alert", config_dir_override=tmp_config) == 0
+        err = capsys.readouterr().err
+        assert "nobody may be subscribed" in err
+        # second send: topic exists, no warning
+        assert notify.send("second alert", config_dir_override=tmp_config) == 0
+        assert "nobody may be subscribed" not in capsys.readouterr().err
+
     def test_send_failure_returns_1(self, tmp_config, monkeypatch):
         notify.save_config({"ntfy_topic": "t"}, tmp_config)
 
@@ -120,3 +143,13 @@ class TestShow:
         out = capsys.readouterr().out
         assert "mytopic" in out
         assert "https://ntfy.sh/mytopic" in out
+
+    def test_show_saves_ascii_qr_file(self, tmp_config):
+        pytest.importorskip("qrcode")
+        notify.save_config({"ntfy_topic": "mytopic"}, tmp_config)
+        assert notify.show(tmp_config) == 0
+        txt = notify.config_path(tmp_config).parent / "ntfy-qr.txt"
+        assert txt.exists()
+        content = txt.read_text()
+        assert content.startswith("https://ntfy.sh/mytopic")
+        assert "█" in content

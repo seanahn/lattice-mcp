@@ -79,6 +79,8 @@ lattice notify --show           # re-print topic / URL / QR anytime
 
 The first use generates a per-user topic like `lattice-<user>-<random12>` and stores it in `~/.config/lattice/config.json`. **The random suffix is the secret** — on public ntfy servers the topic name is the only access control, so don't shorten it or share it.
 
+A successful manual `lattice ui login` shows the subscription info (topic, URL, QR) automatically, so new users see it at onboarding without a separate step. The ASCII QR is also saved to `~/.config/lattice/ntfy-qr.txt` for when the terminal output isn't usable (e.g. agent-mediated setup — open the file in any editor and scan it). If a send auto-generates a topic (nothing configured yet), it prints a warning that nobody is subscribed.
+
 Overrides (env beats config file):
 
 | | env | config.json key | default |

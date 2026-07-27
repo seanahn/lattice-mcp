@@ -86,7 +86,15 @@ def send(
     title: Optional[str] = None,
     config_dir_override: Optional[str] = None,
 ) -> int:
-    topic = resolve_topic(config_dir_override, create=True)
+    existing = resolve_topic(config_dir_override)
+    topic = existing or resolve_topic(config_dir_override, create=True)
+    if existing is None:
+        print(
+            f"Warning: generated new notification topic '{topic}' — nobody may be "
+            "subscribed to it yet. Run 'lattice notify --show' and subscribe your "
+            "phone, or this and future alerts will go unseen.",
+            file=sys.stderr,
+        )
     server = resolve_server(config_dir_override)
     req = urllib.request.Request(
         f"{server}/{topic}", data=message.encode("utf-8"), method="POST"
@@ -102,6 +110,33 @@ def send(
     except Exception as e:
         print(f"Failed to send notification: {e}", file=sys.stderr)
         return 1
+
+
+def save_qr_txt(url: str, config_dir_override: Optional[str] = None) -> Optional[Path]:
+    """Save the ASCII QR to a text file next to the config; returns the path.
+
+    Plain text renders scannable in any editor's monospace view — the
+    reliable fallback when the terminal QR is truncated or mangled
+    (e.g. agent-mediated setup, where tool output gets summarized).
+    """
+    try:
+        import io
+
+        import qrcode
+    except ImportError:
+        return None
+    try:
+        qr = qrcode.QRCode(border=2)
+        qr.add_data(url)
+        qr.make(fit=True)
+        buf = io.StringIO()
+        qr.print_ascii(out=buf, invert=True)
+        path = config_dir(config_dir_override) / "ntfy-qr.txt"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(f"{url}\n\n{buf.getvalue()}")
+        return path
+    except Exception:
+        return None
 
 
 def _print_qr(url: str) -> None:
@@ -144,4 +179,11 @@ def show(config_dir_override: Optional[str] = None, create: bool = False) -> int
     print(f"  Web:    {url}")
     print("  Phone:  ntfy app → + → enter the topic name, or scan:")
     _print_qr(url)
+    qr_path = save_qr_txt(url, config_dir_override)
+    if qr_path:
+        print(f"  QR file:  {qr_path}  (open + scan if the QR above doesn't render)")
+    print(
+        "  Agents: relay the topic name and Web URL above to the user verbatim —"
+        " ASCII QR codes don't survive summarization."
+    )
     return 0
