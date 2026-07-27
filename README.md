@@ -170,6 +170,60 @@ If you also have a Jira MCP server in your session, you can chain them:
 
 Claude calls the Jira server to get ticket details, then calls `lattice_create_objective` for each — no glue code needed.
 
+## Scheduled Automation (cron)
+
+You can run headless Claude on a schedule to automate recurring Lattice tasks — e.g. posting weekly objective updates sourced from Jira tickets every Friday.
+
+### Prerequisites
+
+- Claude Code CLI installed and authenticated on the machine
+- `lattice-mcp` installed (`pipx install lattice-mcp[qr]` + `playwright install chromium`)
+- Initial login done once: `lattice ui login`
+- ntfy set up: `lattice notify --setup` (scan QR on your phone)
+- Your project's `.mcp.json` includes the `lattice` server (and `jira` if you want cross-referencing)
+
+### Example: weekly objective update from Jira
+
+1. Write a prompt file (e.g. `~/.config/lattice/weekly-update.md`):
+
+```markdown
+Post my weekly Lattice objective updates (it's Friday).
+
+1. Call lattice_objectives to list my active objectives.
+2. For each objective, call lattice_scrape on /goals/<entityId> to read its current state.
+3. Fetch my in-progress Jira tickets with jira_search (assignee = currentUser(), status = "In Progress").
+4. For each objective, compose a brief status comment (2-4 sentences) referencing relevant Jira progress.
+5. Post each comment with lattice_update_objective, keeping the current status color.
+6. Call lattice_notify with a summary of what was posted.
+7. If any tool returns "Session expired": do NOT attempt login (nobody may be at the machine).
+   Instead call lattice_notify with "Lattice weekly update FAILED — session expired. Run: lattice ui login"
+   and stop.
+```
+
+2. Add a cron entry (`crontab -e`):
+
+```
+47 7 * * 5 cd /path/to/your/project && claude -p "$(cat ~/.config/lattice/weekly-update.md)" --allowedTools "mcp__lattice__*,mcp__jira__*" >> ~/lattice-weekly.log 2>&1
+```
+
+- `cd /path/to/your/project` — must contain the `.mcp.json` that registers lattice (and jira)
+- `--allowedTools` — restricts Claude to only MCP tools (no shell access needed)
+- Friday 7:47 AM — adjust to run before your company's bot checks for updates
+
+### Session maintenance
+
+The Lattice session expires after hours/days, but **silent headless re-login** recovers it automatically whenever you (or an agent) next use a lattice tool interactively. The stored IdP cookies (e.g. Microsoft Entra, ~90-day rolling window) allow SSO to complete without interaction.
+
+As long as you use Lattice at least once every ~80 days (the weekly cron counts — any interactive session triggers a re-login if needed), the chain stays warm indefinitely. If the IdP session eventually expires, you'll get an ntfy alert telling you to run `lattice ui login` once.
+
+### Without Jira
+
+Drop the Jira steps from the prompt and `mcp__jira__*` from `--allowedTools`. The agent will just continue the narrative from the existing objective notes:
+
+```
+47 7 * * 5 cd /path/to/your/project && claude -p "$(cat ~/.config/lattice/weekly-update.md)" --allowedTools "mcp__lattice__*" >> ~/lattice-weekly.log 2>&1
+```
+
 ## How It Works
 
 1. Tools launch headless Chromium with the saved session cookies
