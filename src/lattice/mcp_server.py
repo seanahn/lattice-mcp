@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -49,7 +50,7 @@ async def _scrape_page_graphql(path: str) -> tuple[str, list[dict]]:
 
     state_file = str(browser_state_path())
     if not Path(state_file).exists():
-        raise RuntimeError("No browser session. Run 'lattice ui login' first.")
+        raise RuntimeError("No browser session. Call the lattice_ui_login tool (or run 'lattice ui login') first.")
 
     host = os.environ.get(WEB_HOSTNAME_ENV, DEFAULT_WEB_HOSTNAME)
 
@@ -84,7 +85,7 @@ async def _scrape_page_graphql(path: str) -> tuple[str, list[dict]]:
         current_url = page.url
         if looks_like_login_url(current_url, host):
             await browser.close()
-            raise RuntimeError("Session expired. Run 'lattice ui login' to re-authenticate.")
+            raise RuntimeError("Session expired. Call the lattice_ui_login tool (or run 'lattice ui login') to re-authenticate.")
 
         text = await page.inner_text("body")
         await browser.close()
@@ -103,7 +104,50 @@ async def lattice_session_status() -> str:
     """Check if Lattice browser session is active."""
     if session_exists():
         return "Session active."
-    return "No session. Run: lattice ui login --cdp-url http://127.0.0.1:9223 (after starting Chrome with --remote-debugging-port=9223)"
+    return "No session. Call the lattice_ui_login tool, or run: lattice ui login --cdp-url http://127.0.0.1:9223 (after starting Chrome with --remote-debugging-port=9223)"
+
+
+@mcp.tool()
+async def lattice_ui_login(timeout: int = 240) -> str:
+    """Open a browser window for SSO login to create or refresh the Lattice session.
+
+    Call this when other tools return "Session expired" or "No browser
+    session" — but tell the user first: a Chromium window will open on
+    their display and they must complete the SSO login in it. Blocks until
+    login finishes or `timeout` seconds elapse. Requires a display; in
+    headless environments the user must run 'lattice ui login --cdp-url ...'
+    manually instead.
+    """
+    if not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
+        return (
+            "Error: no display available — cannot open a login window. "
+            "Ask the user to run 'lattice ui login --cdp-url ...' manually "
+            "(see README for headless options)."
+        )
+
+    # ui_login() uses sync Playwright and prints to stdout, so run the CLI
+    # as a subprocess to keep the MCP stdio channel clean.
+    proc = await asyncio.create_subprocess_exec(
+        sys.executable,
+        "-m",
+        "lattice",
+        "ui",
+        "login",
+        "--timeout",
+        str(timeout),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.STDOUT,
+    )
+    try:
+        out, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout + 60)
+    except asyncio.TimeoutError:
+        proc.kill()
+        return "Error: timed out waiting for SSO completion."
+
+    text = out.decode(errors="replace").strip()
+    if proc.returncode == 0:
+        return "Login successful — session saved. Retry the previous operation."
+    return f"Login failed (exit {proc.returncode}): {text[-500:]}"
 
 
 @mcp.tool()
@@ -171,7 +215,7 @@ async def lattice_update_objective(
 
     state_file = str(browser_state_path())
     if not Path(state_file).exists():
-        return "Error: No browser session. Run 'lattice ui login' first."
+        return "Error: No browser session. Call the lattice_ui_login tool (or run 'lattice ui login') first."
 
     host = os.environ.get(WEB_HOSTNAME_ENV, DEFAULT_WEB_HOSTNAME)
     goal_url = f"https://{host}/goals/{goal_entity_id}"
@@ -200,7 +244,7 @@ async def lattice_update_objective(
 
         if looks_like_login_url(page.url, host):
             await browser.close()
-            return "Error: Session expired. Run 'lattice ui login' to re-authenticate."
+            return "Error: Session expired. Call the lattice_ui_login tool (or run 'lattice ui login') to re-authenticate."
 
         # Click first visible "Update" button to open the form
         update_buttons = [
@@ -274,7 +318,7 @@ async def lattice_create_objective(
 
     state_file = str(browser_state_path())
     if not Path(state_file).exists():
-        return "Error: No browser session. Run 'lattice ui login' first."
+        return "Error: No browser session. Call the lattice_ui_login tool (or run 'lattice ui login') first."
 
     host = os.environ.get(WEB_HOSTNAME_ENV, DEFAULT_WEB_HOSTNAME)
     create_url = f"https://{host}/goals/create/objective"
@@ -288,7 +332,7 @@ async def lattice_create_objective(
 
         if looks_like_login_url(page.url, host):
             await browser.close()
-            return "Error: Session expired. Run 'lattice ui login' to re-authenticate."
+            return "Error: Session expired. Call the lattice_ui_login tool (or run 'lattice ui login') to re-authenticate."
 
         # Fill title using keyboard.type() to trigger React onChange
         title_input = await page.query_selector("#name")
@@ -330,7 +374,7 @@ async def lattice_delete_objective(goal_entity_id: str) -> str:
 
     state_file = str(browser_state_path())
     if not Path(state_file).exists():
-        return "Error: No browser session. Run 'lattice ui login' first."
+        return "Error: No browser session. Call the lattice_ui_login tool (or run 'lattice ui login') first."
 
     host = os.environ.get(WEB_HOSTNAME_ENV, DEFAULT_WEB_HOSTNAME)
     goal_url = f"https://{host}/goals/{goal_entity_id}"
@@ -344,7 +388,7 @@ async def lattice_delete_objective(goal_entity_id: str) -> str:
 
         if looks_like_login_url(page.url, host):
             await browser.close()
-            return "Error: Session expired. Run 'lattice ui login' to re-authenticate."
+            return "Error: Session expired. Call the lattice_ui_login tool (or run 'lattice ui login') to re-authenticate."
 
         # Click overflow/kebab menu button
         overflow_btn = await page.query_selector("button:has-text('Overflow Icon')")
