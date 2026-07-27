@@ -7,3 +7,4 @@ __pycache__/
 lattice-scrape/
 lattice-scrape-root/
 browser-state.json
+CRONS.md
