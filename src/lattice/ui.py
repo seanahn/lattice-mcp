@@ -116,7 +116,13 @@ def ui_login(
             if cdp_url:
                 browser = p.chromium.connect_over_cdp(cdp_url)
             else:
-                browser = p.chromium.launch(headless=headless)
+                # AutomationControlled off + a normal Chrome UA (headless
+                # Chromium's default UA says "HeadlessChrome", which
+                # Cloudflare hard-blocks on the login route).
+                browser = p.chromium.launch(
+                    headless=headless,
+                    args=["--disable-blink-features=AutomationControlled"],
+                )
         except Exception as e:
             print(
                 f"Browser launch failed: {e}\n\n"
@@ -134,18 +140,47 @@ def ui_login(
             page = pages[0] if pages else context.new_page()
             page.goto(target_url)
         else:
-            context = browser.new_context()
+            # Seed from the existing state file when present: expired app
+            # cookies are harmless, and still-valid IdP session cookies let
+            # the SSO complete silently — which is what makes --headless
+            # re-login possible at all.
+            ua = (
+                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36"
+            )
+            if state_path.exists():
+                print("Reusing stored session state (IdP cookies may allow silent SSO).")
+                context = browser.new_context(
+                    storage_state=str(state_path), user_agent=ua
+                )
+            else:
+                context = browser.new_context(user_agent=ua)
             page = context.new_page()
             page.goto(target_url)
 
         print(f"Waiting up to {timeout}s for SSO completion on {host}...")
 
+        sso_clicked = False
         deadline = time.time() + timeout
         while time.time() < deadline:
             current_url = page.url
             cookies = context.cookies()
             if is_authenticated(current_url, host, len(cookies) > 0):
                 break
+            # On Lattice's own login page, click the SSO button so the IdP
+            # round-trip can start (and complete silently if IdP cookies
+            # are still valid).
+            if not sso_clicked and host in current_url and "/login" in current_url:
+                try:
+                    btn = page.query_selector(
+                        "a:has-text('Sign in with'), button:has-text('Sign in with')"
+                    )
+                    if btn and btn.is_visible():
+                        btn.click()
+                        sso_clicked = True
+                        print("Clicked SSO sign-in button...")
+                except Exception:
+                    pass
             time.sleep(1)
         else:
             print("Timeout waiting for authentication.", file=sys.stderr)

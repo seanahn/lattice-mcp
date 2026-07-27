@@ -129,12 +129,33 @@ async def lattice_ui_login(timeout: int = 240) -> str:
     """Open a browser window for SSO login to create or refresh the Lattice session.
 
     Call this when other tools return "Session expired" or "No browser
-    session" — but tell the user first: a Chromium window will open on
-    their display and they must complete the SSO login in it. Blocks until
-    login finishes or `timeout` seconds elapse. Requires a display; in
-    headless environments the user must run 'lattice ui login --cdp-url ...'
-    manually instead.
+    session". Tries a silent headless refresh first (succeeds with no user
+    interaction while the stored IdP session cookies are still valid). If
+    that fails, falls back to opening a Chromium window on the user's
+    display — tell the user first: they must complete the SSO login in it.
+    Blocks until login finishes or `timeout` seconds elapse.
     """
+    # Silent headless refresh: reuses stored IdP cookies, no interaction.
+    if Path(str(browser_state_path())).exists():
+        proc = await asyncio.create_subprocess_exec(
+            sys.executable,
+            "-m",
+            "lattice",
+            "ui",
+            "login",
+            "--headless",
+            "--timeout",
+            "90",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+        )
+        try:
+            await asyncio.wait_for(proc.communicate(), timeout=150)
+            if proc.returncode == 0:
+                return "Session refreshed silently — no user interaction was needed."
+        except asyncio.TimeoutError:
+            proc.kill()
+
     if not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
         return (
             "Error: no display available — cannot open a login window. "

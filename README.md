@@ -40,9 +40,17 @@ google-chrome --remote-debugging-port=9223 --user-data-dir=/tmp/chrome-lattice -
 lattice ui login --cdp-url http://127.0.0.1:9223
 ```
 
+### Option C: Silent headless re-login (after first login)
+
+```bash
+lattice ui login --headless
+```
+
+Reuses the stored browser state: even if the Lattice session has expired, the saved IdP session cookies (e.g. Microsoft Entra) usually allow the SSO to complete silently — no window, no password, no MFA. Works until the IdP's own session expires (often weeks), then fall back to Option A/B. Whether the silent hop is permitted depends on your IdP tenant's conditional-access policies.
+
 ### Session expiry
 
-If tools return "Session expired", re-run `lattice ui login` — or let the agent call the `lattice_ui_login` MCP tool, which opens the login window for you (you still complete the SSO yourself).
+If tools return "Session expired", re-run `lattice ui login` — or let the agent call the `lattice_ui_login` MCP tool, which tries the silent headless refresh first and only opens a login window if that fails (you complete the SSO yourself).
 
 ## Configuration
 
