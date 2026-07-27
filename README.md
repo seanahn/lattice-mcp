@@ -23,7 +23,7 @@ The server uses a saved Playwright browser session (`~/.config/lattice/browser-s
 ### Option A: Local machine with a display
 
 ```bash
-lattice ui login
+lattice ui login --hostname <your-company>.latticehq.com
 ```
 
 A Chromium window opens — complete your SSO login. The window closes automatically once authenticated and the session is saved. The session is reusable until it expires on Lattice's side (typically days to weeks).
@@ -42,6 +42,20 @@ lattice ui login --cdp-url http://127.0.0.1:9223
 
 If tools return "Session expired", re-run `lattice ui login`.
 
+## Configuration
+
+All configuration is via environment variables — no code changes needed to point at your own Lattice tenant:
+
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `LATTICE_WEB_HOSTNAME` | Your Lattice tenant, e.g. `acme.latticehq.com` | `c3.latticehq.com` |
+| `LATTICE_USER_ENTITY_ID` | Your Lattice user entity UUID — the default owner for `lattice_objectives` | unset (tools require an explicit `owner_id`) |
+| `LATTICE_CONFIG_DIR` | Where credentials and the browser session are stored | `~/.config/lattice` |
+
+`lattice ui login` also accepts `--hostname` directly (takes precedence over the env var). The hostname is **not** saved with the session — the MCP server re-reads `LATTICE_WEB_HOSTNAME` on every call, so set it wherever the server is launched (see below).
+
+To find your user entity ID: open any Lattice page filtered to your objectives and copy the UUID from the URL (`ownerEntityIdsFilter=...`), or inspect a GraphQL response in your browser's devtools.
+
 ## MCP Server Setup (Claude Code)
 
 Add to your project's `.mcp.json`:
@@ -50,7 +64,11 @@ Add to your project's `.mcp.json`:
 {
   "mcpServers": {
     "lattice": {
-      "command": "lattice-mcp"
+      "command": "lattice-mcp",
+      "env": {
+        "LATTICE_WEB_HOSTNAME": "<your-company>.latticehq.com",
+        "LATTICE_USER_ENTITY_ID": "<your-user-entity-uuid>"
+      }
     }
   }
 }
