@@ -36,7 +36,7 @@ CHROMIUM_MISSING = (
 
 async def _launch_browser(p):
     try:
-        return await _launch_browser(p)
+        return await p.chromium.launch(headless=True)
     except Exception as e:
         if "executable doesn't exist" in str(e).lower() or "browsertype.launch" in str(e).lower():
             raise RuntimeError(CHROMIUM_MISSING) from e
@@ -94,7 +94,8 @@ async def _scrape_page_graphql(path: str) -> tuple[str, list[dict]]:
 
 # --- Lattice Tools ---
 
-USER_ENTITY_ID = "01bfc19d-5192-4939-b03d-d185138ce183"
+USER_ENTITY_ID_ENV = "LATTICE_USER_ENTITY_ID"
+USER_ENTITY_ID = os.environ.get(USER_ENTITY_ID_ENV, "")
 
 
 @mcp.tool()
@@ -107,10 +108,15 @@ async def lattice_session_status() -> str:
 
 @mcp.tool()
 async def lattice_objectives(owner_id: str = USER_ENTITY_ID) -> str:
-    """List Lattice objectives for a user (defaults to Sean Ahn).
+    """List Lattice objectives for a user (defaults to $LATTICE_USER_ENTITY_ID).
 
     Returns objectives with title, status, progress, due date, and priority.
     """
+    if not owner_id:
+        return (
+            "Error: no owner_id given and LATTICE_USER_ENTITY_ID is not set. "
+            "Pass owner_id or set the environment variable."
+        )
     filter_path = (
         f'/goals/explore?ownerEntityIdsFilter=%5B%22{owner_id}%22%5D'
         f'&statusesFilter=%5B%22AllActive%22%5D&viewType=cascade'
@@ -119,6 +125,7 @@ async def lattice_objectives(owner_id: str = USER_ENTITY_ID) -> str:
     _text, gql_responses = await _scrape_page_graphql(filter_path)
 
     objectives = []
+    seen_ids = set()
     for r in gql_responses:
         body = r.get("body", {})
         if not isinstance(body, dict):
@@ -128,7 +135,8 @@ async def lattice_objectives(owner_id: str = USER_ENTITY_ID) -> str:
         edges = goals.get("edges", [])
         for edge in edges:
             node = edge.get("node", {})
-            if node.get("name"):
+            if node.get("name") and node.get("entityId") not in seen_ids:
+                seen_ids.add(node.get("entityId"))
                 progress = node.get("computedProgressAmount")
                 objectives.append({
                     "entityId": node.get("entityId"),
@@ -194,8 +202,12 @@ async def lattice_update_objective(
             await browser.close()
             return "Error: Session expired. Run 'lattice ui login' to re-authenticate."
 
-        # Click first "Update" button to open the form
-        update_buttons = await page.query_selector_all("button:has-text('Update')")
+        # Click first visible "Update" button to open the form
+        update_buttons = [
+            b
+            for b in await page.query_selector_all("button:has-text('Update')")
+            if await b.is_visible()
+        ]
         if not update_buttons:
             await browser.close()
             return "Error: Could not find Update button on goal page."
@@ -208,8 +220,14 @@ async def lattice_update_objective(
             await radios[idx].click()
             await asyncio.sleep(0.5)
 
-        # Type comment
-        textbox = await page.query_selector("[contenteditable='true'], [role='textbox'], textarea")
+        # Type comment (first visible textbox)
+        textbox = None
+        for t in await page.query_selector_all(
+            "[contenteditable='true'], [role='textbox'], textarea"
+        ):
+            if await t.is_visible():
+                textbox = t
+                break
         if textbox:
             await textbox.click()
             await asyncio.sleep(0.2)
@@ -219,8 +237,12 @@ async def lattice_update_objective(
         # Clear logs before submit
         requests_log.clear()
 
-        # Click submit (second "Update" button)
-        update_buttons = await page.query_selector_all("button:has-text('Update')")
+        # Click submit (last visible "Update" button)
+        update_buttons = [
+            b
+            for b in await page.query_selector_all("button:has-text('Update')")
+            if await b.is_visible()
+        ]
         if len(update_buttons) >= 2:
             await update_buttons[-1].click()
         else:

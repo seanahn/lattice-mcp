@@ -86,11 +86,9 @@ Variables:
 
 ### Key IDs
 
-| Entity | Value |
-|--------|-------|
-| User (Sean Ahn) | `01bfc19d-5192-4939-b03d-d185138ce183` |
-| Company (C3 AI) | `293aacd4-f240-4356-8b47-34247c10420f` |
-| Socket Firewall objective | `c876f39d-374d-42c7-84e5-d8feec38501c` |
+Entity IDs (user, company, objectives) are UUIDs discoverable from GraphQL
+responses or page URLs. Set `LATTICE_USER_ENTITY_ID` to your own user entity
+ID to make it the default owner for objective tools.
 
 ---
 
