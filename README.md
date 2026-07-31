@@ -166,9 +166,58 @@ If you also have a Jira MCP server in your session, you can chain them:
 
 ```
 > fetch PLAT-0000 and PLAT-0001 from jira, then create lattice objectives from their summaries
+> close any lattice objectives whose jira tickets are done
 ```
 
-Claude calls the Jira server to get ticket details, then calls `lattice_create_objective` for each — no glue code needed.
+Claude calls the Jira server to check ticket status, then calls `lattice_update_objective` with `close=True` to mark completed objectives — no glue code needed.
+
+#### Setting up the Jira MCP server
+
+We use [`mcp-atlassian`](https://pypi.org/project/mcp-atlassian/) — an actively maintained MCP server covering Jira + Confluence (~60 tools including JQL search, issue CRUD, transitions, comments).
+
+1. Install:
+
+```bash
+pipx install mcp-atlassian
+```
+
+2. Generate a Jira API token at https://id.atlassian.com/manage-profile/security/api-tokens
+
+3. Create a wrapper script (avoids putting the token in `.mcp.json`):
+
+```bash
+cat > ~/.local/bin/jira-mcp << 'EOF'
+#!/bin/bash
+export JIRA_URL="https://<your-company>.atlassian.net"
+export JIRA_USERNAME="<your-email>"
+export JIRA_API_TOKEN="<your-api-token>"
+exec mcp-atlassian "$@"
+EOF
+chmod +x ~/.local/bin/jira-mcp
+```
+
+4. Add to your project's `.mcp.json` alongside the lattice server:
+
+```json
+{
+  "mcpServers": {
+    "lattice": {
+      "command": "lattice-mcp",
+      "env": {
+        "LATTICE_WEB_HOSTNAME": "<your-company>.latticehq.com",
+        "LATTICE_USER_ENTITY_ID": "<your-user-entity-uuid>"
+      }
+    },
+    "jira": {
+      "command": "jira-mcp"
+    }
+  }
+}
+```
+
+5. Restart Claude Code — the tools appear as `jira_*` and `lattice_*` in your session.
+
+> **Note:** Pin `mcp-atlassian` to a major version if you hit dependency issues (e.g. `pipx runpip mcp-atlassian install "mcp>=1.0,<2.0"` if the `mcp` 2.0 breaking change bites).
 
 ## Scheduled Automation (cron)
 
