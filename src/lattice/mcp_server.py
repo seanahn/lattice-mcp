@@ -400,17 +400,27 @@ async def lattice_update_objective(
         # Clear logs before submit
         requests_log.clear()
 
-        # Click submit (last visible "Update" button)
-        update_buttons = [
-            b
-            for b in await page.query_selector_all("button:has-text('Update')")
-            if await b.is_visible()
-        ]
-        if len(update_buttons) >= 2:
-            await update_buttons[-1].click()
-        else:
+        # Click submit — button text may be "Update", "Complete", or similar
+        submit_btn = None
+        for label in ["Mark complete", "Complete", "Update", "Save", "Submit"]:
+            candidates = [
+                b
+                for b in await page.query_selector_all(f"button:has-text('{label}')")
+                if await b.is_visible()
+            ]
+            if candidates:
+                submit_btn = candidates[-1]
+                break
+        if not submit_btn:
+            # Fallback: any visible button with type=submit
+            for b in await page.query_selector_all("button[type='submit']"):
+                if await b.is_visible():
+                    submit_btn = b
+                    break
+        if not submit_btn:
             await browser.close()
             return "Error: Could not find submit button."
+        await submit_btn.click()
 
         await asyncio.sleep(4)
         await _save_session(context)
