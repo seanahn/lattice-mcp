@@ -160,6 +160,33 @@ Restart Claude Code to load the server. The tools appear as `lattice_*` in your 
 > delete objective <entityId>
 ```
 
+### Scheduled weekly updates (cron)
+
+Write a prompt file (e.g. `~/.config/lattice/weekly-update.md`):
+
+```markdown
+Post my weekly Lattice objective updates (it's Friday).
+
+1. Call lattice_objectives to list my active objectives.
+2. For each objective, call lattice_scrape on /goals/<entityId> to read its current state.
+3. For each objective, compose a brief weekly status comment (2-4 sentences) continuing the
+   narrative from the latest note. Keep the current status color.
+   Do NOT invent accomplishments or metrics not present in the existing notes.
+4. Post each comment with lattice_update_objective.
+5. Call lattice_notify with a summary of what was posted.
+6. If any tool returns "Session expired": do NOT attempt login (nobody may be at the machine).
+   Instead call lattice_notify with "Lattice weekly update FAILED — session expired. Run: lattice ui login"
+   and stop.
+```
+
+Add a cron entry (`crontab -e`):
+
+```
+47 7 * * 5 cd /path/to/your/project && claude -p "$(cat ~/.config/lattice/weekly-update.md)" --allowedTools "mcp__lattice__*" >> ~/lattice-weekly.log 2>&1
+```
+
+See [Scheduled Automation](#scheduled-automation-cron) below for prerequisites, session maintenance, and the Jira cross-referencing variant.
+
 ### Multi-server workflow (with Jira MCP)
 
 If you also have a Jira MCP server in your session, you can chain them:
@@ -267,30 +294,7 @@ As long as you use Lattice at least once every ~80 days (the weekly cron counts 
 
 ### Without Jira
 
-Drop the Jira steps from the prompt and `mcp__jira__*` from `--allowedTools`. The agent continues the narrative from the existing objective notes:
-
-Prompt file (`~/.config/lattice/weekly-update.md`):
-
-```markdown
-Post my weekly Lattice objective updates (it's Friday).
-
-1. Call lattice_objectives to list my active objectives.
-2. For each objective, call lattice_scrape on /goals/<entityId> to read its current state.
-3. For each objective, compose a brief weekly status comment (2-4 sentences) continuing the
-   narrative from the latest note. Keep the current status color.
-   Do NOT invent accomplishments or metrics not present in the existing notes.
-4. Post each comment with lattice_update_objective.
-5. Call lattice_notify with a summary of what was posted.
-6. If any tool returns "Session expired": do NOT attempt login (nobody may be at the machine).
-   Instead call lattice_notify with "Lattice weekly update FAILED — session expired. Run: lattice ui login"
-   and stop.
-```
-
-Cron entry:
-
-```
-47 7 * * 5 cd /path/to/your/project && claude -p "$(cat ~/.config/lattice/weekly-update.md)" --allowedTools "mcp__lattice__*" >> ~/lattice-weekly.log 2>&1
-```
+The standalone prompt and cron entry shown in [Scheduled weekly updates](#scheduled-weekly-updates-cron) above works without Jira — no extra setup needed.
 
 ## How It Works
 
