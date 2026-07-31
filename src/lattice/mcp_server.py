@@ -293,13 +293,17 @@ async def lattice_update_objective(
     goal_entity_id: str,
     comment: str,
     status: str = "green",
+    close: bool = False,
 ) -> str:
     """Post an update to a Lattice objective.
 
     Args:
         goal_entity_id: UUID of the objective (entityId)
         comment: Update text to post
-        status: "green" (On track), "amber" (Progressing), or "red" (Off track)
+        status: "green" (On track), "amber" (Progressing), or "red" (Off track).
+                Ignored when close=True (status is set to "complete" automatically).
+        close: If True, mark the objective as complete (sets progress to target
+               and status to "complete"). Use when the underlying work is done.
     """
     from playwright.async_api import async_playwright
 
@@ -309,6 +313,9 @@ async def lattice_update_objective(
 
     host = os.environ.get(WEB_HOSTNAME_ENV, DEFAULT_WEB_HOSTNAME)
     goal_url = f"https://{host}/goals/{goal_entity_id}"
+
+    if close:
+        status = "complete"
 
     status_index = {"green": 0, "amber": 1, "red": 2, "complete": 3, "incomplete": 4}
     idx = status_index.get(status, 0)
@@ -347,6 +354,28 @@ async def lattice_update_objective(
             return "Error: Could not find Update button on goal page."
         await update_buttons[0].click()
         await asyncio.sleep(2)
+
+        # If closing, set progress to target value first
+        if close:
+            progress_input = None
+            for inp in await page.query_selector_all("input[type='number'], input[inputmode='numeric']"):
+                if await inp.is_visible():
+                    progress_input = inp
+                    break
+            if progress_input:
+                await progress_input.triple_click()
+                await asyncio.sleep(0.2)
+                current_val = await progress_input.get_attribute("value") or "0"
+                # For binary objectives (0/1), set to 1; otherwise read the
+                # target from nearby text and set progress equal to it.
+                target = "1"
+                target_text = await page.inner_text("body")
+                import re
+                m = re.search(r"Target:\s*(\d+(?:\.\d+)?)", target_text)
+                if m:
+                    target = m.group(1)
+                await progress_input.fill(target)
+                await asyncio.sleep(0.5)
 
         # Select status radio
         radios = await page.query_selector_all("[role='radio']")
@@ -388,7 +417,10 @@ async def lattice_update_objective(
         await browser.close()
 
     if requests_log:
-        return f"Update posted successfully. Status: {status}, comment length: {len(comment)} chars."
+        msg = f"Update posted successfully. Status: {status}, comment length: {len(comment)} chars."
+        if close:
+            msg += " Objective marked as complete."
+        return msg
     return "Warning: Update button clicked but no GraphQL request detected. Check Lattice to verify."
 
 

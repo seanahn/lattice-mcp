@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "lattice-mcp"
-version = "0.1.16"
+version = "0.1.17"
 description = "MCP server for Lattice HR — manage objectives via browser session replay"
 readme = "README.md"
 requires-python = ">=3.10"
