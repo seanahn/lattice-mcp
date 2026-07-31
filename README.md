@@ -147,7 +147,7 @@ Restart Claude Code to load the server. The tools appear as `lattice_*` in your 
 | `lattice_notify` | Send a push notification to the user via ntfy |
 | `lattice_objectives` | List active objectives for a user (defaults to you) |
 | `lattice_create_objective` | Create a new objective (title, optional priority/due date) |
-| `lattice_update_objective` | Post a status update + comment to an objective |
+| `lattice_update_objective` | Post a status update + comment to an objective; pass `close=True` to mark it complete |
 | `lattice_delete_objective` | Delete an objective by entityId |
 | `lattice_scrape` | Scrape any Lattice page and return visible text |
 
@@ -231,7 +231,7 @@ You can run headless Claude on a schedule to automate recurring Lattice tasks â€
 - ntfy set up: `lattice notify --setup` (scan QR on your phone)
 - Your project's `.mcp.json` includes the `lattice` server (and `jira` if you want cross-referencing)
 
-### Example: weekly objective update from Jira
+### Example: weekly objective update (with Jira cross-referencing)
 
 1. Write a prompt file (e.g. `~/.config/lattice/weekly-update.md`):
 
@@ -267,7 +267,26 @@ As long as you use Lattice at least once every ~80 days (the weekly cron counts 
 
 ### Without Jira
 
-Drop the Jira steps from the prompt and `mcp__jira__*` from `--allowedTools`. The agent will just continue the narrative from the existing objective notes:
+Drop the Jira steps from the prompt and `mcp__jira__*` from `--allowedTools`. The agent continues the narrative from the existing objective notes:
+
+Prompt file (`~/.config/lattice/weekly-update.md`):
+
+```markdown
+Post my weekly Lattice objective updates (it's Friday).
+
+1. Call lattice_objectives to list my active objectives.
+2. For each objective, call lattice_scrape on /goals/<entityId> to read its current state.
+3. For each objective, compose a brief weekly status comment (2-4 sentences) continuing the
+   narrative from the latest note. Keep the current status color.
+   Do NOT invent accomplishments or metrics not present in the existing notes.
+4. Post each comment with lattice_update_objective.
+5. Call lattice_notify with a summary of what was posted.
+6. If any tool returns "Session expired": do NOT attempt login (nobody may be at the machine).
+   Instead call lattice_notify with "Lattice weekly update FAILED â€” session expired. Run: lattice ui login"
+   and stop.
+```
+
+Cron entry:
 
 ```
 47 7 * * 5 cd /path/to/your/project && claude -p "$(cat ~/.config/lattice/weekly-update.md)" --allowedTools "mcp__lattice__*" >> ~/lattice-weekly.log 2>&1
